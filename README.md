@@ -1,3 +1,4 @@
+<!-- Repositorio migrado a bi-analytics-linktic/dev-healthapps-v2 -->
 # Health Apps
 
 Centro de monitoreo centralizado del estado, la disponibilidad y el rendimiento de las
