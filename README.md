@@ -76,6 +76,10 @@ DB_SSLMODE=require                            # obligatorio: sin esto la conexi�
 - En lugar de las `DB_*` se puede usar `DATABASE_URL` (la URI de Supabase); `DB_SCHEMA` y
   `DB_SSLMODE` se le aplican igual.
 - La contraseña va en claro en el `.env` (la app la codifica); el `.env` está en `.gitignore`.
+- **En Vercel usa el *Transaction pooler* (`DB_PORT=6543`)**: el modo sesión admite solo 15 clientes
+  y cada instancia de Vercel abre su propio pool (error `EMAXCONNSESSION`). Las migraciones siguen
+  corriendo con el modo sesión (5432) desde tu máquina. El SQL crudo funciona igual porque el rol
+  tiene `search_path = app_health` (ver `scripts/supabase/app-health-setup.sql`).
 
 ### Puesta en marcha (una sola vez por entorno)
 
