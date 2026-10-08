@@ -1,0 +1,235 @@
+// Esquema de Health Apps (PostgreSQL 18 + Prisma 7).
+// Convenciones (knowledge/tech/codebase.md → "Convenciones de base de datos"):
+// - Modelos en PascalCase y singular; tablas en snake_case y plural con @@map("...").
+// - Campos en camelCase mapeados a snake_case con @map("...").
+// - PK `id` uuid; `createdAt` / `updatedAt` en todas las tablas (timestamptz).
+// - Las tablas viven en el esquema DB_SCHEMA (normalmente health_extern).
+// Cada feature agrega aquí sus modelos con su propia migración.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Identidad y acceso (WI-019) ────────────────────────────────────────────
+
+/// Rol de un usuario. Se siembra con `pnpm db:seed` (superadmin, admin, nuevo).
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  permissions RolePermission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+/// Permiso con formato `<recurso>.<acción>` (p. ej. users.create).
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  roles          RolePermission[]
+  revokedForUser UserRevokedPermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid()) @db.Uuid
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id                String    @id @default(uuid()) @db.Uuid
+  /// Normalizado en minúsculas.
+  email             String    @unique
+  /// Normalizado en minúsculas.
+  username          String    @unique
+  /// Hash argon2id. Nunca se guarda la contraseña.
+  passwordHash      String    @map("password_hash")
+  roleId            String    @map("role_id") @db.Uuid
+  isActive          Boolean   @default(true) @map("is_active")
+  /// Quién creó el usuario; null = autorregistro o seed.
+  createdById       String?   @map("created_by_id") @db.Uuid
+  lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz(6)
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  role               Role                    @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  createdBy          User?                   @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers       User[]                  @relation("UserCreatedBy")
+  sessions           UserSession[]
+  revokedPermissions UserRevokedPermission[] @relation("RevokedPermissionUser")
+  revokedByMe        UserRevokedPermission[] @relation("RevokedPermissionBy")
+  createdServices    Service[]               @relation("ServiceCreatedBy")
+
+  @@index([roleId])
+  @@index([createdById])
+  @@map("users")
+}
+
+/// Permisos revocados a un usuario concreto (p. ej. a un admin). No afecta a superadmin.
+model UserRevokedPermission {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  revokedById  String?    @map("revoked_by_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User       @relation("RevokedPermissionUser", fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  revokedBy    User?      @relation("RevokedPermissionBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, permissionId])
+  @@index([permissionId])
+  @@index([revokedById])
+  @@map("user_revoked_permissions")
+}
+
+/// Sesión de un usuario. Su `id` viaja en el JWT como `sid`; revocarla invalida sus tokens.
+model UserSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  /// SHA-256 del refresh token (nunca el token en claro).
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  userAgent        String?   @map("user_agent")
+  ipAddress        String?   @map("ip_address")
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt       DateTime? @map("last_used_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  /// logout | logout_all | rotation | reuse_detected | password_change | user_disabled
+  revokedReason    String?   @map("revoked_reason")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+// ─── Catálogo de servicios (WI-007) ─────────────────────────────────────────
+
+/// Aplicación o servicio que Health Apps monitorea.
+model Service {
+  id                     String        @id @default(uuid()) @db.Uuid
+  name                   String        @unique
+  description            String?
+  /// URL HTTP(S) que se consulta en cada verificación.
+  checkUrl               String        @map("check_url")
+  /// Un servicio inactivo no se verifica.
+  isActive               Boolean       @default(true) @map("is_active")
+  /// Parámetro esperado (WI-008): tiempo de respuesta por encima del cual el servicio está degradado.
+  degradedResponseTimeMs Int           @default(1000) @map("degraded_response_time_ms")
+  /// Parámetro esperado (WI-008): fallos consecutivos para considerarlo fuera de servicio.
+  downAfterFailures      Int           @default(3) @map("down_after_failures")
+  /// Frecuencia de verificación (WI-010).
+  checkIntervalSeconds   Int           @default(60) @map("check_interval_seconds")
+  /// Tiempo máximo de espera de cada verificación (WI-010).
+  timeoutMs              Int           @default(10000) @map("timeout_ms")
+  /// Próxima verificación programada; el worker reclama los servicios vencidos (ADR-004).
+  nextCheckAt            DateTime      @default(now()) @map("next_check_at") @db.Timestamptz(6)
+  lastCheckedAt          DateTime?     @map("last_checked_at") @db.Timestamptz(6)
+  lastResponseTimeMs     Int?          @map("last_response_time_ms")
+  /// Fallos seguidos (se reinicia con un éxito; los `skipped` no cuentan).
+  consecutiveFailures    Int           @default(0) @map("consecutive_failures")
+  /// Estado de salud actual (WI-011, BR-01). Nulo hasta la primera verificación.
+  healthStatus           HealthStatus? @map("health_status")
+  statusChangedAt        DateTime?     @map("status_changed_at") @db.Timestamptz(6)
+  /// Último estado de los componentes reportados en el JSON del /health (WI-021).
+  lastComponents         Json?         @map("last_components")
+  createdById            String?       @map("created_by_id") @db.Uuid
+  createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy     User?                 @relation("ServiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  checks        ServiceCheck[]
+  statusChanges ServiceStatusChange[]
+
+  @@index([isActive, nextCheckAt])
+  @@index([createdById])
+  @@map("services")
+}
+
+// ─── Verificaciones (WI-010, ADR-004 y ADR-005) ─────────────────────────────
+
+/// Estado de salud de un servicio (BR-01).
+enum HealthStatus {
+  operativo
+  degradado
+  caido
+
+  @@map("health_status")
+}
+
+enum CheckOutcome {
+  success
+  failure
+  /// La verificación no se pudo ejecutar por una falla del propio monitor (BR-08).
+  skipped
+
+  @@map("check_outcome")
+}
+
+/// Resultado de una verificación. Retención: CHECK_RESULTS_RETENTION_DAYS (30 por defecto).
+model ServiceCheck {
+  id             String       @id @default(uuid()) @db.Uuid
+  serviceId      String       @map("service_id") @db.Uuid
+  checkedAt      DateTime     @map("checked_at") @db.Timestamptz(6)
+  outcome        CheckOutcome
+  httpStatus     Int?         @map("http_status")
+  responseTimeMs Int?         @map("response_time_ms")
+  errorMessage   String?      @map("error_message")
+  /// Problema reportado en el cuerpo con HTTP OK (componentes con falla); degrada el servicio (WI-021).
+  degradedReason String?      @map("degraded_reason")
+  /// Extracto del cuerpo (máx. 2 KB), solo en verificaciones con problema (WI-021).
+  bodyExcerpt    String?      @map("body_excerpt")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  service        Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, checkedAt(sort: Desc)])
+  @@index([checkedAt])
+  @@map("service_checks")
+}
+
+// ─── Historial de estados (WI-014, ADR-005) ─────────────────────────────────
+
+/// Transición de estado de un servicio. Retención: STATUS_HISTORY_RETENTION_DAYS (365 por defecto).
+model ServiceStatusChange {
+  id         String        @id @default(uuid()) @db.Uuid
+  serviceId  String        @map("service_id") @db.Uuid
+  /// Nulo en la primera evaluación del servicio.
+  fromStatus HealthStatus? @map("from_status")
+  toStatus   HealthStatus  @map("to_status")
+  changedAt  DateTime      @map("changed_at") @db.Timestamptz(6)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  service    Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, changedAt(sort: Desc)])
+  @@index([changedAt])
+  @@map("service_status_changes")
+}

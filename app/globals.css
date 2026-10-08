@@ -1,0 +1,189 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tokens de la línea gráfica de Health Apps (resources/lineagrafica/).
+ * Los componentes solo usan tokens semánticos; cada tema define sus valores.
+ * Tema oscuro: valores de la línea gráfica.
+ * Tema claro: PROVISIONAL, derivado del oscuro hasta que la línea gráfica entregue sus valores.
+ */
+
+@theme inline {
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
+  --font-heading: var(--font-plex-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Texto adicional de la línea gráfica */
+  --color-text-secondary: var(--text-secondary);
+  --color-text-subtle: var(--text-subtle);
+  --color-surface-elevated: var(--surface-elevated);
+
+  /* Estados de salud y su tinte de fondo */
+  --color-status-ok: var(--status-ok);
+  --color-status-ok-tint: var(--status-ok-tint);
+  --color-status-warn: var(--status-warn);
+  --color-status-warn-tint: var(--status-warn-tint);
+  --color-status-down: var(--status-down);
+  --color-status-down-tint: var(--status-down-tint);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Radios de la línea gráfica: 8, 10 y 16 px; pastillas con radius-full */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+}
+
+/* Tema claro (PROVISIONAL) */
+:root {
+  --radius: 0.625rem;
+
+  --background: #f4f6f7;
+  --foreground: #12171a;
+  --card: #ffffff;
+  --card-foreground: #12171a;
+  --popover: #ffffff;
+  --popover-foreground: #12171a;
+  --primary: oklch(0.5 0.11 215);
+  --primary-foreground: #ffffff;
+  --secondary: #e9edef;
+  --secondary-foreground: #12171a;
+  --muted: #e9edef;
+  --muted-foreground: #56626a;
+  --accent: #e9edef;
+  --accent-foreground: #12171a;
+  --destructive: oklch(0.55 0.2 25);
+  --border: #dde3e6;
+  --input: #cfd6da;
+  --ring: oklch(0.5 0.11 215);
+
+  --text-secondary: #39434a;
+  --text-subtle: #5f6b72;
+  --surface-elevated: #eef1f3;
+
+  --status-ok: oklch(0.52 0.14 155);
+  --status-ok-tint: oklch(0.52 0.14 155 / 0.12);
+  --status-warn: oklch(0.53 0.13 70);
+  --status-warn-tint: oklch(0.56 0.13 70 / 0.14);
+  --status-down: oklch(0.55 0.2 25);
+  --status-down-tint: oklch(0.55 0.2 25 / 0.12);
+
+  --chart-1: oklch(0.5 0.11 215);
+  --chart-2: oklch(0.52 0.14 155);
+  --chart-3: oklch(0.53 0.13 70);
+  --chart-4: oklch(0.55 0.2 25);
+  --chart-5: #56626a;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #12171a;
+  --sidebar-primary: oklch(0.5 0.11 215);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e9edef;
+  --sidebar-accent-foreground: #12171a;
+  --sidebar-border: #dde3e6;
+  --sidebar-ring: oklch(0.5 0.11 215);
+}
+
+/* Tema oscuro (línea gráfica) */
+.dark {
+  --background: #0f1214;
+  --foreground: #e8edf0;
+  --card: #161a1d;
+  --card-foreground: #e8edf0;
+  --popover: #1f2427;
+  --popover-foreground: #e8edf0;
+  --primary: oklch(0.8 0.12 200);
+  --primary-foreground: #0f1214;
+  --secondary: #20262a;
+  --secondary-foreground: #e8edf0;
+  --muted: #1f2427;
+  --muted-foreground: #8d989f;
+  --accent: #20262a;
+  --accent-foreground: #e8edf0;
+  --destructive: oklch(0.66 0.21 25);
+  --border: #262c30;
+  --input: #2c3236;
+  --ring: oklch(0.8 0.12 200);
+
+  --text-secondary: #c9d1d6;
+  --text-subtle: #6c777e;
+  --surface-elevated: #1f2427;
+
+  --status-ok: oklch(0.78 0.16 155);
+  --status-ok-tint: oklch(0.78 0.16 155 / 0.14);
+  --status-warn: oklch(0.82 0.15 80);
+  --status-warn-tint: oklch(0.82 0.15 80 / 0.14);
+  --status-down: oklch(0.66 0.21 25);
+  --status-down-tint: oklch(0.66 0.21 25 / 0.16);
+
+  --chart-1: oklch(0.8 0.12 200);
+  --chart-2: oklch(0.78 0.16 155);
+  --chart-3: oklch(0.82 0.15 80);
+  --chart-4: oklch(0.66 0.21 25);
+  --chart-5: #8d989f;
+
+  --sidebar: #161a1d;
+  --sidebar-foreground: #e8edf0;
+  --sidebar-primary: oklch(0.8 0.12 200);
+  --sidebar-primary-foreground: #0f1214;
+  --sidebar-accent: #20262a;
+  --sidebar-accent-foreground: #e8edf0;
+  --sidebar-border: #262c30;
+  --sidebar-ring: oklch(0.8 0.12 200);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* Enlaces de texto; los componentes (p. ej. Button asChild) definen su propio color. */
+  a:not([data-slot]) {
+    @apply text-primary;
+  }
+}
