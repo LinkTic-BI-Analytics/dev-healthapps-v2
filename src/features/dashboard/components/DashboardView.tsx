@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import ManualChecksNotice from "@/features/checks/components/ManualChecksNotice";
 import PanelHelp from "@/features/help/content/PanelHelp";
 import { formatRelativeTime } from "@/lib/format";
 import { prefersReducedMotion } from "@/lib/motion";
@@ -33,7 +34,7 @@ async function celebrate() {
 }
 
 /** Panel general: indicadores globales y una tarjeta por servicio activo, con animaciones (WI-024). */
-export default function DashboardView({ canManage }: { canManage: boolean }) {
+export default function DashboardView({ canManage, manualChecks = false }: { canManage: boolean; manualChecks?: boolean }) {
   const { data, loading, error, refreshing, refresh, changes } = useDashboard();
   const [filter, setFilter] = useState<Filter>("todos");
   const celebrated = useRef(new Set<string>());
@@ -100,6 +101,8 @@ export default function DashboardView({ canManage }: { canManage: boolean }) {
             <PanelHelp />
           </div>
         </header>
+
+        {manualChecks && data.services.length > 0 && <ManualChecksNotice onChecked={refresh} />}
 
         {data.services.length === 0 ? (
           <motion.div

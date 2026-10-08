@@ -1,21 +1,37 @@
 # SOLO DESARROLLO LOCAL.
 # En producción se usa la imagen del target `prod` del Dockerfile conectada a una instancia de
-# PostgreSQL aparte, con las mismas variables DB_* inyectadas en tiempo de ejecución.
+# PostgreSQL aparte (Supabase), con las mismas variables DB_* inyectadas en tiempo de ejecución.
 #
-# Uso: cp .env.example .env  (definir DB_SCHEMA, normalmente health_extern)  →  docker compose up
+# Uso: cp .env.example .env  →  docker compose up
+#
+# La conexión a la base es SIEMPRE la del contenedor `db`: las DB_* y DATABASE_URL del .env se
+# sobrescriben aquí, así que el mismo .env puede apuntar a Supabase para `pnpm dev` sin que
+# `docker compose up` lo toque. Del .env solo se usan JWT_*, SEED_*, CHECK_*, etc.
 
 name: health-apps
+
+# Conexión al PostgreSQL local, compartida por app y worker.
+x-local-db: &local-db
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_NAME: health_apps
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_SCHEMA: app_health
+  DB_SSLMODE: disable
+  DATABASE_URL: ""
 
 services:
   db:
     image: postgres:18
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-health_apps}
-      DB_SCHEMA: ${DB_SCHEMA:-public}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: health_apps
+      DB_SCHEMA: app_health
     ports:
-      - "${DB_PORT:-5432}:5432"
+      # LOCAL_DB_PORT permite cambiar el puerto del equipo si 5432 ya está ocupado.
+      - "${LOCAL_DB_PORT:-5432}:5432"
     volumes:
       # postgres:18 guarda los datos en /var/lib/postgresql/18/docker: se monta el directorio padre.
       - db-data:/var/lib/postgresql
@@ -33,8 +49,7 @@ services:
     env_file: .env
     environment:
       # Dentro de la red de Compose la base se alcanza por el nombre del servicio.
-      DB_HOST: db
-      DB_PORT: "5432"
+      <<: *local-db
     ports:
       - "3000:3000"
     volumes:
@@ -59,8 +74,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DB_HOST: db
-      DB_PORT: "5432"
+      <<: *local-db
       # Dentro del contenedor, `localhost` es el propio contenedor: las URLs con localhost/127.0.0.1
       # se verifican contra el equipo anfitrión (servicios que corres en tu máquina).
       CHECK_LOCALHOST_ALIAS: host.docker.internal

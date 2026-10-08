@@ -18,3 +18,13 @@ export type CheckResult = {
 
 /** Verificación tal como la entrega el API (fechas en ISO 8601). */
 export type ServiceCheckDto = Omit<CheckResult, "components"> & { id: string; checkedAt: string };
+
+/** Resumen de una verificación manual de todos los servicios (modo `manual`). */
+export type ManualCheckSummary = {
+  total: number;
+  success: number;
+  failure: number;
+  skipped: number;
+  /** Servicios omitidos porque se verificaron hace muy poco. */
+  recent: number;
+};

@@ -3,9 +3,11 @@ import userEvent from "@testing-library/user-event";
 import DashboardView from "./DashboardView";
 import { DashboardService } from "../services/dashboard.service";
 import type { DashboardData, ServiceHealthSummary } from "../types/dashboard.types";
+import { ChecksService } from "@/features/checks/services/checks.service";
 
 vi.mock("react-hot-toast", () => ({ default: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("../services/dashboard.service", () => ({ DashboardService: { get: vi.fn() } }));
+vi.mock("@/features/checks/services/checks.service", () => ({ ChecksService: { runAll: vi.fn() } }));
 
 const svc = (id: string, name: string, healthStatus: ServiceHealthSummary["healthStatus"]): ServiceHealthSummary => ({
   id,
@@ -108,5 +110,28 @@ describe("DashboardView animaciones y cambios (WI-024)", () => {
     expect(within(erp).getByText("Recuperado")).toBeInTheDocument();
     expect(within(screen.getByRole("link", { name: /Pagos: degradado/ })).getByText("Cambió")).toBeInTheDocument();
     expect(toast.success).toHaveBeenCalledWith("🎉 ERP se recuperó");
+  });
+});
+
+describe("DashboardView modo manual (Vercel)", () => {
+  it("sin modo manual no muestra el aviso", async () => {
+    vi.mocked(DashboardService.get).mockResolvedValue(data);
+    render(<DashboardView canManage />);
+    await screen.findByText("ERP");
+    expect(screen.queryByText(/Monitoreo automático no disponible/)).not.toBeInTheDocument();
+  });
+
+  it("explica la limitación y 'Verificar ahora' verifica todos y recarga el panel", async () => {
+    const toast = (await import("react-hot-toast")).default;
+    vi.mocked(DashboardService.get).mockResolvedValue(data);
+    vi.mocked(ChecksService.runAll).mockResolvedValue({ total: 2, success: 2, failure: 0, skipped: 0, recent: 0 });
+    render(<DashboardView canManage manualChecks />);
+    expect(await screen.findByText(/Monitoreo automático no disponible/)).toBeInTheDocument();
+    const calls = vi.mocked(DashboardService.get).mock.calls.length;
+
+    await userEvent.click(screen.getByRole("button", { name: /Verificar ahora/ }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("2 servicios verificados: 2 OK."));
+    expect(ChecksService.runAll).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(vi.mocked(DashboardService.get).mock.calls.length).toBeGreaterThan(calls));
   });
 });

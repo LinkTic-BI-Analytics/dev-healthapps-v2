@@ -9,6 +9,7 @@ import { formatLatency, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useServiceDetail } from "../hooks/useServiceDetail";
 import type { DetailRange } from "../types/service-detail.types";
+import ManualChecksNotice from "@/features/checks/components/ManualChecksNotice";
 import ServiceDetailHelp from "@/features/help/content/ServiceDetailHelp";
 import UptimeStats from "@/features/uptime/components/UptimeStats";
 import ComponentsList from "./ComponentsList";
@@ -38,7 +39,17 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
 }
 
 /** Detalle de un servicio: estado, métricas, gráfica de tiempos de respuesta y verificaciones recientes. */
-export default function ServiceDetailView({ id, canManage, children }: { id: string; canManage: boolean; children?: React.ReactNode }) {
+export default function ServiceDetailView({
+  id,
+  canManage,
+  manualChecks = false,
+  children,
+}: {
+  id: string;
+  canManage: boolean;
+  manualChecks?: boolean;
+  children?: React.ReactNode;
+}) {
   const { data, loading, error, range, setRange, refresh } = useServiceDetail(id);
 
   if (loading) return <p className="py-10 text-center text-sm text-muted-foreground">Cargando el detalle del servicio…</p>;
@@ -86,6 +97,8 @@ export default function ServiceDetailView({ id, canManage, children }: { id: str
           <ServiceDetailHelp />
         </div>
       </header>
+
+      {manualChecks && <ManualChecksNotice onChecked={refresh} />}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-5">

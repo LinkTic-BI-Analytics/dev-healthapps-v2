@@ -33,3 +33,18 @@ export function getWorkerConfig(env: Env = process.env): WorkerConfig {
     localhostAlias: env.CHECK_LOCALHOST_ALIAS?.trim() || null,
   };
 }
+
+/**
+ * `worker`: un proceso aparte verifica de forma periódica (Docker, contenedores).
+ * `manual`: no hay procesos en segundo plano (Vercel, plan gratuito); el usuario lanza las
+ * verificaciones con un botón. Por defecto es `manual` en Vercel (`VERCEL=1`) y `worker` en el resto;
+ * `CHECKS_MODE` lo fuerza (p. ej. app en Vercel con el worker desplegado en otro host).
+ */
+export type ChecksMode = "worker" | "manual";
+
+export function getChecksMode(env: Env = process.env): ChecksMode {
+  const mode = env.CHECKS_MODE?.trim().toLowerCase();
+  if (mode === "worker" || mode === "manual") return mode;
+  if (mode) throw new Error(`CHECKS_MODE="${env.CHECKS_MODE}" no es válido. Usa "worker" o "manual".`);
+  return env.VERCEL ? "manual" : "worker";
+}

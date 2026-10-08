@@ -3,7 +3,7 @@
 // - Modelos en PascalCase y singular; tablas en snake_case y plural con @@map("...").
 // - Campos en camelCase mapeados a snake_case con @map("...").
 // - PK `id` uuid; `createdAt` / `updatedAt` en todas las tablas (timestamptz).
-// - Las tablas viven en el esquema DB_SCHEMA (normalmente health_extern).
+// - Las tablas viven en el esquema DB_SCHEMA (normalmente app_health).
 // Cada feature agrega aquí sus modelos con su propia migración.
 
 generator client {

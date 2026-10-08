@@ -231,6 +231,7 @@ Reglas:
 - `db` es un cliente único por proceso (en desarrollo se guarda en `globalThis` para sobrevivir al hot reload) y se importa con `import "server-only"`: solo en el servidor.
 - Scripts: `pnpm db:generate`, `pnpm db:migrate` (desarrollo; crea el esquema si no existe y regenera el cliente, porque Prisma 7 ya no lo hace solo), `pnpm db:seed`, `pnpm db:deploy` (producción) y `pnpm test:integration` (pruebas `*.integration.test.ts` contra la base real del `.env`).
 - `GET /api/health` responde el estado de la aplicación y de la base (200 / 503).
+- **Supabase:** la base es compartida y la app solo usa el esquema `app_health`, con el rol `app_health_owner` (`scripts/supabase/app-health-setup.sql`). `prisma.config.ts` bloquea `migrate dev`, `migrate reset`, `db push` y `db execute` contra hosts no locales; en Supabase solo se usa `pnpm db:deploy`.
 
 ## Worker de verificaciones (WI-010, ADR-004)
 
@@ -275,7 +276,7 @@ user_directions
 - Restricciones `UNIQUE` en las claves naturales (p. ej. `email`) y `NOT NULL` salvo que el dato sea realmente opcional.
 - Nunca se guardan secretos en claro: contraseñas → `password_hash`; tokens → `*_token_hash`.
 - **En Prisma:** modelos en `PascalCase` y singular (`User`, `UserSession`) y campos en `camelCase` (`createdAt`), mapeados a la base con `@@map("users")` y `@map("created_at")`. Ids con `@id @default(uuid()) @db.Uuid`, `updatedAt` con `@updatedAt` y fechas con `@db.Timestamptz`.
-- Las tablas viven en el esquema `DB_SCHEMA` (normalmente `health_extern`).
+- Las tablas viven en el esquema `DB_SCHEMA` (`app_health`, en Supabase). `public` y los esquemas de Supabase están prohibidos; ver README → "Base de datos en Supabase".
 - Cada cambio de esquema se hace con una migración versionada de Prisma; nunca se modifica la base a mano.
 
 ## Autenticación
@@ -317,7 +318,8 @@ Se define en WI-019 (backend) y WI-020 (pantallas y protección de rutas):
 | Variable | Ámbito | Descripción |
 | --- | --- | --- |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | servidor | conexión a PostgreSQL |
-| `DB_SCHEMA` | servidor | esquema; `public` en `.env.example`, normalmente `health_extern` en `.env` |
+| `DB_SCHEMA` | servidor | esquema; por defecto `app_health`. Se rechazan `public` y los esquemas reservados de Supabase/PostgreSQL |
+| `DB_SSLMODE` | servidor | vacío/`disable` en local; `require` en Supabase (cifra sin validar la CA) |
 | `DATABASE_URL` | servidor | **Opcional.** Si se define, tiene prioridad sobre las `DB_*`; la aplicación siempre le aplica `?schema=${DB_SCHEMA}` (`src/lib/db/config.ts`) |
 | `JWT_ACCESS_SECRET` | servidor | secreto de firma del access token, mínimo 32 caracteres (WI-019) |
 | `AUTH_COOKIE_SECURE` | servidor | `auto` (por defecto: `Secure` solo con HTTPS, también detrás de proxy), `true` o `false` |
@@ -364,7 +366,7 @@ pnpm lint     # ESLint
 Con Docker (WI-005 y WI-006):
 
 ```bash
-cp .env.example .env     # definir DB_SCHEMA=health_extern
+cp .env.example .env     # DB_SCHEMA=app_health
 docker compose up        # app (dev, aplica migraciones al arrancar) + PostgreSQL 18
 # o solo la base y la app en el anfitrión:
 docker compose up db && pnpm dev

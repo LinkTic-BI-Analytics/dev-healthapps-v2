@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import type { CheckResult } from "../types/check.types";
+import type { CheckResult, ManualCheckSummary } from "../types/check.types";
 import { evaluateHealthStatus } from "@/features/health-status/server/evaluate";
 import type { HealthStatus } from "@/types/health-status.type";
 import { performHttpCheck, resolveCheckUrl } from "./http-check";
@@ -167,4 +167,47 @@ export async function purgeOldChecks(retentionDays: number, batchSize = 5000): P
     total += deleted;
     if (deleted < batchSize) return total;
   }
+}
+
+/** Segundos mínimos entre verificaciones manuales del mismo servicio: evita repetirlas con varios clics. */
+export const MANUAL_CHECK_COOLDOWN_SECONDS = 15;
+
+/**
+ * Verifica ahora todos los servicios activos (modo `manual`, sin worker). Corre con concurrencia
+ * limitada y registra cada resultado igual que el worker; también aplica la retención, que en este
+ * modo no tiene otro momento para ejecutarse.
+ */
+export async function checkAllServices(options: {
+  concurrency: number;
+  canaryUrl: string | null;
+  checkResultsRetentionDays: number;
+  statusHistoryRetentionDays: number;
+}): Promise<ManualCheckSummary> {
+  const active = await db.service.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, checkUrl: true, timeoutMs: true, lastCheckedAt: true },
+    orderBy: { name: "asc" },
+  });
+  const cutoff = Date.now() - MANUAL_CHECK_COOLDOWN_SECONDS * 1000;
+  const due = active.filter((s) => !s.lastCheckedAt || s.lastCheckedAt.getTime() < cutoff);
+  const summary: ManualCheckSummary = { total: due.length, success: 0, failure: 0, skipped: 0, recent: active.length - due.length };
+
+  const canary = createCanary(options.canaryUrl);
+  const queue = [...due];
+  const runNext = async (): Promise<void> => {
+    for (let service = queue.shift(); service; service = queue.shift()) {
+      try {
+        const result = await runServiceCheck(service, canary);
+        summary[result.outcome] += 1;
+      } catch (err) {
+        if (!(err instanceof ServiceDeletedError)) throw err;
+        summary.total -= 1;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(options.concurrency, due.length) }, runNext));
+
+  await purgeOldChecks(options.checkResultsRetentionDays);
+  await purgeOldStatusChanges(options.statusHistoryRetentionDays);
+  return summary;
 }
