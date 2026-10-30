@@ -44,6 +44,14 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
+export const refreshTokenSchema = z.object({
+  refreshToken: z
+    .string({ error: "El refresh token es obligatorio." })
+    .trim()
+    .min(1, { error: "El refresh token es obligatorio." })
+    .max(512, { error: "El refresh token no es válido." }),
+});
+
 /** Mensajes de validación en el formato de `ApiError.message` (uno por problema). */
 export function validationMessages(error: z.ZodError): string[] {
   return [...new Set(error.issues.map((issue) => issue.message))];
