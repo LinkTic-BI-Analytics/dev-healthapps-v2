@@ -1,4 +1,4 @@
-import { createUserSchema, loginSchema, registerSchema } from "./validation";
+import { createUserSchema, loginSchema, refreshTokenSchema, registerSchema } from "./validation";
 
 describe("validación de autenticación", () => {
   it("normaliza email, username e identificador a minúsculas", () => {
@@ -25,5 +25,13 @@ describe("validación de autenticación", () => {
 
   it("solo acepta roles conocidos al crear usuarios", () => {
     expect(createUserSchema.safeParse({ email: "a@b.co", username: "abc", password: "x", role: "root" }).success).toBe(false);
+  });
+});
+
+describe("refresh token de apps externas", () => {
+  it("exige un refresh token no vacío", () => {
+    expect(refreshTokenSchema.parse({ refreshToken: " rt " })).toEqual({ refreshToken: "rt" });
+    expect(refreshTokenSchema.safeParse({ refreshToken: "" }).success).toBe(false);
+    expect(refreshTokenSchema.safeParse({}).success).toBe(false);
   });
 });

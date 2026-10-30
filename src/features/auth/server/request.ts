@@ -4,12 +4,23 @@ import { cache } from "react";
 import { HttpError } from "@/lib/http-error";
 import { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_COOKIE_PATH } from "../constants/cookies";
 import type { PermissionCode } from "../constants/permissions";
-import type { AuthUser } from "../types/auth.types";
-import { authenticate, type IssuedTokens, type RequestMeta } from "./auth.service";
+import type { AuthUser, TokenResponse } from "../types/auth.types";
+import { authenticate, type AuthResult, type IssuedTokens, type RequestMeta } from "./auth.service";
 import { getAuthConfig, resolveCookieSecure } from "./config";
 
-/** Usuario de la petición actual (sesión validada en base de datos). Memorizado por petición. */
+/** Access token de `Authorization: Bearer <token>` (apps externas); `undefined` si no viene. */
+export function parseBearerToken(authorization: string | null): string | undefined {
+  const match = authorization?.match(/^Bearer\s+(\S+)\s*$/i);
+  return match?.[1];
+}
+
+/**
+ * Usuario de la petición actual (sesión validada en base de datos). Memorizado por petición.
+ * Acepta el access token en `Authorization: Bearer` (apps externas) o en la cookie (esta app).
+ */
 export const getCurrentUser = cache(async (): Promise<(AuthUser & { sessionId: string }) | null> => {
+  const bearer = parseBearerToken((await headers()).get("authorization"));
+  if (bearer) return authenticate(bearer);
   const store = await cookies();
   return authenticate(store.get(ACCESS_COOKIE)?.value);
 });
@@ -51,6 +62,19 @@ export async function setAuthCookies(tokens: IssuedTokens): Promise<void> {
     path: REFRESH_COOKIE_PATH,
     expires: tokens.refreshExpiresAt,
   });
+}
+
+/** Respuesta de los endpoints de tokens para apps externas (`/api/auth/token/*`). */
+export function tokenResponse(result: AuthResult, now: number = Date.now()): TokenResponse {
+  const { user, tokens } = result;
+  return {
+    tokenType: "Bearer",
+    accessToken: tokens.accessToken,
+    expiresIn: Math.round((tokens.accessExpiresAt.getTime() - now) / 1000),
+    refreshToken: tokens.refreshToken,
+    refreshExpiresIn: Math.round((tokens.refreshExpiresAt.getTime() - now) / 1000),
+    user,
+  };
 }
 
 export async function clearAuthCookies(): Promise<void> {
