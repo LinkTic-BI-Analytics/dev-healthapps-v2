@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#1b1f22;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:oklch(0.8 0.12 200)}a:hover{color:oklch(0.88 0.1 200)}
+@keyframes hpulse{0%{box-shadow:0 0 0 0 currentColor}70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
+*::-webkit-scrollbar{display:none}
+[style*="flex-direction:column"]>*{flex-shrink:0}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;box-sizing:border-box;gap:48px;flex-wrap:wrap">
+  <div style="max-width:300px;color:#c9d1d6;display:flex;flex-direction:column;gap:14px">
+    <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:oklch(0.78 0.16 155);text-transform:uppercase">Health Apps · prototipo</div>
+    <div style="font:600 26px/1.15 'IBM Plex Sans';color:#eef2f4;text-wrap:pretty">Saber en segundos qué servicios están operativos, degradados o caídos.</div>
+    <div style="font:400 14px/1.55 'IBM Plex Sans';color:#8d989f;text-wrap:pretty">Supuestos: app iOS para el equipo técnico de guardia. Tema oscuro (se usa de noche, durante incidentes). Flujo principal: Panel → Detalle del servicio → Alertas. El sistema de diseño adjunto está vacío, así que la identidad visual es provisional.</div>
+    <div style="font:400 13px/1.55 'IBM Plex Sans';color:#6c777e">Toca un servicio, cambia el rango de la gráfica, filtra por estado, reconoce alertas. Activa «Simular incidente» en Tweaks.</div>
+  </div>
+
+  <div style="width:390px;height:844px;border-radius:54px;background:#0b0d0e;padding:10px;box-shadow:0 0 0 1.5px #2c3236,0 40px 80px rgba(0,0,0,.5);flex:none">
+    <div style="position:relative;width:100%;height:100%;border-radius:44px;overflow:hidden;background:#0f1214;color:#e8edf0;display:flex;flex-direction:column">
+      <div style="height:50px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 30px 0 34px;font:600 15px 'IBM Plex Sans';position:relative">
+        <span>9:41</span>
+        <div style="position:absolute;left:50%;top:11px;transform:translateX(-50%);width:120px;height:34px;border-radius:20px;background:#000"></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="display:flex;gap:2px;align-items:flex-end;height:11px"><div style="width:3px;height:4px;background:#e8edf0;border-radius:1px"></div><div style="width:3px;height:6px;background:#e8edf0;border-radius:1px"></div><div style="width:3px;height:8px;background:#e8edf0;border-radius:1px"></div><div style="width:3px;height:11px;background:#e8edf0;border-radius:1px"></div></div>
+          <div style="width:24px;height:11px;border:1.5px solid #8d989f;border-radius:3px;padding:1px;box-sizing:border-box"><div style="width:75%;height:100%;background:#e8edf0;border-radius:1px"></div></div>
+        </div>
+      </div>
+
+      <sc-if value="{{ isPanel }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;overflow-y:auto;scrollbar-width:none;padding:6px 18px 110px;display:flex;flex-direction:column;gap:18px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="font:500 12px 'IBM Plex Mono';color:#6c777e">Actualizado hace {{ ago }}</div>
+              <div style="font:700 30px 'IBM Plex Sans';letter-spacing:-.02em">Panel</div>
+            </div>
+            <button onClick="{{ refresh }}" style="width:40px;height:40px;border-radius:12px;border:1px solid #262c30;background:#161a1d;color:#c9d1d6;font:500 18px 'IBM Plex Sans';cursor:pointer" style-active="background:#1f2427">↻</button>
+          </div>
+
+          <div style="border-radius:20px;padding:18px;background:{{ heroBg }};border:1px solid {{ heroBorder }};display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:10px;height:10px;border-radius:50%;background:{{ heroColor }};color:{{ heroColor }};animation:hpulse 1.8s infinite"></div>
+              <div style="font:600 17px 'IBM Plex Sans'">{{ heroTitle }}</div>
+            </div>
+            <div style="height:8px;border-radius:4px;overflow:hidden;display:flex;gap:2px">
+              <div style="flex:{{ counts.operativo }};background:oklch(0.78 0.16 155)"></div>
+              <div style="flex:{{ counts.degradado }};background:oklch(0.82 0.15 80)"></div>
+              <div style="flex:{{ counts.caido }};background:oklch(0.66 0.21 25)"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+              <div style="display:flex;flex-direction:column;gap:2px"><div style="font:600 26px 'IBM Plex Mono';color:oklch(0.78 0.16 155)">{{ counts.operativo }}</div><div style="font:400 12px 'IBM Plex Sans';color:#8d989f">Operativos</div></div>
+              <div style="display:flex;flex-direction:column;gap:2px"><div style="font:600 26px 'IBM Plex Mono';color:oklch(0.82 0.15 80)">{{ counts.degradado }}</div><div style="font:400 12px 'IBM Plex Sans';color:#8d989f">Degradados</div></div>
+              <div style="display:flex;flex-direction:column;gap:2px"><div style="font:600 26px 'IBM Plex Mono';color:oklch(0.66 0.21 25)">{{ counts.caido }}</div><div style="font:400 12px 'IBM Plex Sans';color:#8d989f">Caídos</div></div>
+            </div>
+          </div>
+
+          <div style="flex:none;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -18px;padding:0 18px">
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+              <button onClick="{{ f.onClick }}" style="flex:none;height:34px;padding:0 14px;border-radius:17px;border:1px solid {{ f.border }};background:{{ f.bg }};color:{{ f.fg }};font:500 13px 'IBM Plex Sans';cursor:pointer;display:flex;align-items:center;gap:6px">{{ f.label }}<span style="font:500 12px 'IBM Plex Mono';opacity:.7">{{ f.n }}</span></button>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ list }}" as="s" hint-placeholder-count="6">
+              <div onClick="{{ s.open }}" style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;background:#161a1d;border:1px solid #20262a;cursor:pointer" style-active="background:#1c2124">
+                <div style="width:4px;align-self:stretch;border-radius:2px;background:{{ s.color }}"></div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                  <div style="font:600 15px 'IBM Plex Sans';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.name }}</div>
+                  <div style="display:flex;gap:10px;white-space:nowrap;font:400 12px 'IBM Plex Mono';color:#8d989f"><span style="color:{{ s.color }}">{{ s.label }}</span><span>{{ s.latency }} ms</span><span>{{ s.uptime }}%</span></div>
+                </div>
+                <svg width="72" height="28" viewBox="0 0 72 28" style="flex:none"><path d="{{ s.spark }}" fill="none" stroke="{{ s.color }}" stroke-width="1.5" stroke-linejoin="round"></path></svg>
+                <div style="color:#4a545a;font:400 18px 'IBM Plex Sans'">›</div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ listEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:28px;text-align:center;font:400 14px 'IBM Plex Sans';color:#6c777e">Ningún servicio en este estado.</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;overflow-y:auto;scrollbar-width:none;padding:4px 18px 110px;display:flex;flex-direction:column;gap:16px">
+          <button onClick="{{ back }}" style="align-self:flex-start;background:none;border:none;color:oklch(0.8 0.12 200);font:500 16px 'IBM Plex Sans';padding:6px 0;cursor:pointer">‹ {{ backLabel }}</button>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="padding:4px 10px;border-radius:8px;background:{{ sel.tint }};color:{{ sel.color }};font:600 12px 'IBM Plex Mono';text-transform:uppercase;letter-spacing:.06em">{{ sel.label }}</div>
+              <div style="font:400 12px 'IBM Plex Mono';color:#6c777e">{{ sel.env }}</div>
+            </div>
+            <div style="font:700 26px/1.15 'IBM Plex Sans';letter-spacing:-.02em">{{ sel.name }}</div>
+            <div style="font:400 14px/1.45 'IBM Plex Sans';color:#8d989f;text-wrap:pretty">{{ sel.note }}</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+            <sc-for list="{{ metrics }}" as="m" hint-placeholder-count="4">
+              <div style="padding:14px;border-radius:14px;background:#161a1d;border:1px solid #20262a;display:flex;flex-direction:column;gap:6px">
+                <div style="font:400 12px 'IBM Plex Sans';color:#8d989f">{{ m.label }}</div>
+                <div style="font:600 22px 'IBM Plex Mono';color:{{ m.color }}">{{ m.value }}<span style="font:400 13px 'IBM Plex Mono';color:#6c777e"> {{ m.unit }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="padding:16px;border-radius:16px;background:#161a1d;border:1px solid #20262a;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font:600 14px 'IBM Plex Sans'">Latencia p95</div>
+              <div style="display:flex;background:#0f1214;border-radius:9px;padding:2px">
+                <sc-for list="{{ ranges }}" as="r" hint-placeholder-count="3">
+                  <button onClick="{{ r.onClick }}" style="border:none;border-radius:7px;padding:5px 10px;background:{{ r.bg }};color:{{ r.fg }};font:500 12px 'IBM Plex Mono';cursor:pointer">{{ r.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <svg viewBox="0 0 320 130" style="width:100%;height:auto;display:block">
+              <line x1="0" x2="320" y1="{{ chart.thY }}" y2="{{ chart.thY }}" stroke="oklch(0.66 0.21 25)" stroke-dasharray="3 4" stroke-width="1" opacity=".6"></line>
+              <path d="{{ chart.area }}" fill="{{ sel.tint }}"></path>
+              <path d="{{ chart.line }}" fill="none" stroke="{{ sel.color }}" stroke-width="2" stroke-linejoin="round"></path>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono';color:#6c777e"><span>{{ chart.from }}</span><span style="color:oklch(0.72 0.15 25)">umbral {{ chart.th }} ms</span><span>ahora</span></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font:600 13px 'IBM Plex Sans';color:#8d989f;text-transform:uppercase;letter-spacing:.06em">Chequeos</div>
+            <div style="border-radius:16px;background:#161a1d;border:1px solid #20262a;overflow:hidden">
+              <sc-for list="{{ checks }}" as="c" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:10px;padding:13px 14px;border-top:1px solid {{ c.sep }}">
+                  <div style="width:8px;height:8px;border-radius:50%;background:{{ c.color }}"></div>
+                  <div style="flex:1;font:400 13px 'IBM Plex Mono';color:#c9d1d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.path }}</div>
+                  <div style="font:500 12px 'IBM Plex Mono';color:{{ c.color }}">{{ c.code }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAlerts }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;overflow-y:auto;scrollbar-width:none;padding:6px 18px 110px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <div style="font:500 12px 'IBM Plex Mono';color:#6c777e">{{ pendingLabel }}</div>
+            <div style="font:700 30px 'IBM Plex Sans';letter-spacing:-.02em">Alertas</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="4">
+              <div style="padding:14px;border-radius:16px;background:#161a1d;border:1px solid {{ a.border }};display:flex;flex-direction:column;gap:10px;opacity:{{ a.opacity }}">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="padding:3px 8px;border-radius:6px;background:{{ a.tint }};color:{{ a.color }};font:600 11px 'IBM Plex Mono';text-transform:uppercase;letter-spacing:.06em">{{ a.sev }}</div>
+                  <div style="flex:1;font:400 12px 'IBM Plex Mono';color:#6c777e">{{ a.time }}</div>
+                </div>
+                <div onClick="{{ a.open }}" style="display:flex;flex-direction:column;gap:3px;cursor:pointer">
+                  <div style="font:600 15px 'IBM Plex Sans'">{{ a.service }}</div>
+                  <div style="font:400 13px/1.45 'IBM Plex Sans';color:#a3adb3;text-wrap:pretty">{{ a.msg }}</div>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <sc-if value="{{ a.pending }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ a.ack }}" style="flex:1;height:38px;border-radius:10px;border:none;background:#e8edf0;color:#0f1214;font:600 13px 'IBM Plex Sans';cursor:pointer" style-active="background:#c9d1d6">Reconocer</button>
+                  </sc-if>
+                  <sc-if value="{{ a.done }}" hint-placeholder-val="{{ false }}">
+                    <div style="flex:1;height:38px;display:flex;align-items:center;font:500 13px 'IBM Plex Sans';color:#6c777e">✓ Reconocida por ti</div>
+                  </sc-if>
+                  <button onClick="{{ a.open }}" style="height:38px;padding:0 14px;border-radius:10px;border:1px solid #2c3236;background:none;color:#c9d1d6;font:500 13px 'IBM Plex Sans';cursor:pointer">Ver servicio</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="position:absolute;left:0;right:0;bottom:0;padding:10px 40px 30px;display:flex;justify-content:space-around;background:rgba(15,18,20,.88);backdrop-filter:blur(16px);border-top:1px solid #1f2427">
+        <button onClick="{{ goPanel }}" style="background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:{{ tabPanelColor }};min-width:64px;padding:4px">
+          <div style="display:grid;grid-template-columns:8px 8px;gap:3px"><div style="width:8px;height:8px;border-radius:2px;background:currentColor"></div><div style="width:8px;height:8px;border-radius:2px;background:currentColor"></div><div style="width:8px;height:8px;border-radius:2px;background:currentColor"></div><div style="width:8px;height:8px;border-radius:2px;background:currentColor"></div></div>
+          <span style="font:500 11px 'IBM Plex Sans'">Panel</span>
+        </button>
+        <button onClick="{{ goAlerts }}" style="background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:{{ tabAlertsColor }};min-width:64px;padding:4px;position:relative">
+          <div style="width:16px;height:19px;display:flex;align-items:flex-end;justify-content:center"><div style="width:15px;height:15px;border-radius:8px 8px 3px 3px;border:2px solid currentColor;box-sizing:border-box"></div></div>
+          <sc-if value="{{ hasPending }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;top:0;left:38px;min-width:18px;height:18px;border-radius:9px;background:oklch(0.66 0.21 25);color:#fff;font:600 11px 'IBM Plex Mono';display:flex;align-items:center;justify-content:center;padding:0 4px;box-sizing:border-box">{{ pendingCount }}</div>
+          </sc-if>
+          <span style="font:500 11px 'IBM Plex Sans'">Alertas</span>
+        </button>
+      </div>
+      <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#e8edf0"></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;incidentMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;label&quot;:&quot;Simular incidente&quot;}}">
+const ST = {
+  operativo: { label: 'Operativo', color: 'oklch(0.78 0.16 155)', tint: 'oklch(0.78 0.16 155 / .14)' },
+  degradado: { label: 'Degradado', color: 'oklch(0.82 0.15 80)', tint: 'oklch(0.82 0.15 80 / .14)' },
+  caido: { label: 'Caído', color: 'oklch(0.66 0.21 25)', tint: 'oklch(0.66 0.21 25 / .16)' },
+};
+const SERVICES = [
+  { id: 'pay', name: 'API de Pagos', status: 'degradado', lat: 840, up: 99.21, err: 2.4, rpm: 1840, th: 600, env: 'prod · us-east', note: 'Latencia p95 sobre el umbral desde hace 14 min. Proveedor de pasarela responde lento.', checks: [['POST /v2/charges', 'degradado', '1.2 s'], ['GET /v2/charges/:id', 'operativo', '200'], ['POST /v2/refunds', 'degradado', '980 ms']] },
+  { id: 'erp', name: 'Integración ERP', status: 'caido', lat: 0, up: 97.40, err: 100, rpm: 0, th: 1200, env: 'prod · on-prem', note: 'Sin respuesta desde las 09:12. Timeout de conexión al conector SAP.', checks: [['GET /erp/health', 'caido', 'timeout'], ['POST /erp/orders/sync', 'caido', '503'], ['GET /erp/inventory', 'caido', 'timeout']] },
+  { id: 'auth', name: 'Autenticación', status: 'operativo', lat: 92, up: 99.99, err: 0.02, rpm: 5210, th: 300, env: 'prod · us-east', note: 'Todos los chequeos responden con normalidad.', checks: [['POST /oauth/token', 'operativo', '200'], ['GET /.well-known/jwks', 'operativo', '200'], ['POST /mfa/verify', 'operativo', '200']] },
+  { id: 'portal', name: 'Portal de Clientes', status: 'operativo', lat: 210, up: 99.97, err: 0.1, rpm: 3120, th: 800, env: 'prod · cdn + us-east', note: 'Todos los chequeos responden con normalidad.', checks: [['GET /', 'operativo', '200'], ['GET /cuenta', 'operativo', '200'], ['GET /api/session', 'operativo', '200']] },
+  { id: 'notif', name: 'Notificaciones', status: 'operativo', lat: 140, up: 99.95, err: 0.3, rpm: 960, th: 500, env: 'prod · us-east', note: 'Cola de envío al día.', checks: [['POST /push', 'operativo', '202'], ['POST /email', 'operativo', '202'], ['POST /sms', 'operativo', '202']] },
+  { id: 'db', name: 'Base de datos principal', status: 'operativo', lat: 18, up: 100, err: 0, rpm: 42100, th: 80, env: 'prod · primaria', note: 'Réplicas sincronizadas, retraso < 1 s.', checks: [['primary:5432', 'operativo', 'ok'], ['replica-1:5432', 'operativo', 'ok'], ['replica-2:5432', 'operativo', 'ok']] },
+  { id: 'rep', name: 'Motor de Reportes', status: 'operativo', lat: 460, up: 99.90, err: 0.4, rpm: 120, th: 2000, env: 'prod · batch', note: 'Último lote completado a las 08:00.', checks: [['GET /reports/health', 'operativo', '200'], ['POST /reports/run', 'operativo', '202']] },
+  { id: 'cdn', name: 'CDN de estáticos', status: 'operativo', lat: 34, up: 100, err: 0, rpm: 18400, th: 200, env: 'global', note: 'Tasa de acierto de caché 97 %.', checks: [['GET /static/app.js', 'operativo', '200'], ['GET /static/app.css', 'operativo', '200']] },
+];
+const ALERTS = [
+  { id: 'a1', sid: 'erp', sev: 'crítica', msg: 'Servicio sin respuesta en 3 chequeos consecutivos.', time: 'hace 29 min' },
+  { id: 'a2', sid: 'pay', sev: 'advertencia', msg: 'Latencia p95 de 840 ms supera el umbral de 600 ms.', time: 'hace 14 min' },
+  { id: 'a3', sid: 'pay', sev: 'advertencia', msg: 'Tasa de errores 2,4 % (umbral 1 %).', time: 'hace 11 min' },
+  { id: 'a4', sid: 'notif', sev: 'info', msg: 'Recuperado: cola de SMS vuelve a la normalidad.', time: 'hace 2 h' },
+];
+function rnd(seed) { let s = 0; for (const c of seed) s = (s * 31 + c.charCodeAt(0)) >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function series(svc, n, key) {
+  const r = rnd(svc.id + key); const out = [];
+  const base = svc.status === 'caido' ? svc.th * 0.6 : svc.status === 'degradado' ? svc.th * 0.7 : svc.lat;
+  for (let i = 0; i < n; i++) {
+    let v = base * (0.85 + r() * 0.3);
+    if (svc.status === 'degradado' && i > n * 0.7) v = svc.lat * (0.9 + r() * 0.25);
+    if (svc.status === 'caido' && i > n * 0.8) v = svc.th * 1.5;
+    out.push(v);
+  }
+  return out;
+}
+function path(vals, w, h, max, pad = 4) {
+  return vals.map((v, i) => `${i ? 'L' : 'M'}${(i / (vals.length - 1) * w).toFixed(1)},${(h - pad - Math.min(v / max, 1) * (h - pad * 2)).toFixed(1)}`).join(' ');
+}
+class Component extends DCLogic {
+  state = { tab: 'panel', sel: null, from: 'panel', filter: 'todos', range: '24h', acked: {}, last: Date.now(), now: Date.now() };
+  componentDidMount() { this.t = setInterval(() => this.setState({ now: Date.now() }), 1000); }
+  componentWillUnmount() { clearInterval(this.t); }
+  services() {
+    return SERVICES.map(s => (this.props.incidentMode && s.id === 'auth')
+      ? { ...s, status: 'caido', lat: 0, err: 100, rpm: 0, up: 99.12, note: 'Caída detectada: el endpoint de tokens devuelve 503.', checks: s.checks.map(c => [c[0], 'caido', '503']) } : s);
+  }
+  alerts() {
+    const a = [...ALERTS];
+    if (this.props.incidentMode) a.unshift({ id: 'a0', sid: 'auth', sev: 'crítica', msg: 'POST /oauth/token devuelve 503. Usuarios no pueden iniciar sesión.', time: 'hace 1 min' });
+    return a;
+  }
+  renderVals() {
+    const { tab, sel, filter, range, acked, now, last } = this.state;
+    const svcs = this.services();
+    const order = { caido: 0, degradado: 1, operativo: 2 };
+    const counts = { operativo: 0, degradado: 0, caido: 0 };
+    svcs.forEach(s => counts[s.status]++);
+    const jitter = (s) => s.lat ? Math.round(s.lat * (0.96 + ((Math.floor(now / 3000) * 7 + s.id.length * 13) % 9) / 100)) : '—';
+    const open = (id) => () => this.setState(st => ({ sel: id, from: st.sel ? st.from : st.tab, range: '24h' }));
+    const list = svcs.filter(s => filter === 'todos' || s.status === filter).sort((a, b) => order[a.status] - order[b.status]).map(s => ({
+      name: s.name, label: ST[s.status].label, color: ST[s.status].color, latency: jitter(s), uptime: s.up.toFixed(2),
+      spark: path(series(s, 18, 'sp'), 72, 28, s.th * 1.6, 3), open: open(s.id),
+    }));
+    const fdefs = [['todos', 'Todos', svcs.length], ['caido', 'Caídos', counts.caido], ['degradado', 'Degradados', counts.degradado], ['operativo', 'Operativos', counts.operativo]];
+    const filters = fdefs.map(([k, l, n]) => ({ label: l, n, onClick: () => this.setState({ filter: k }),
+      bg: filter === k ? '#e8edf0' : '#161a1d', fg: filter === k ? '#0f1214' : '#c9d1d6', border: filter === k ? '#e8edf0' : '#262c30' }));
+    const worst = counts.caido ? 'caido' : counts.degradado ? 'degradado' : 'operativo';
+    const heroTitle = worst === 'operativo' ? 'Todos los servicios operativos' : `${counts.caido + counts.degradado} servicios requieren atención`;
+    const secs = Math.floor((now - last) / 1000);
+    const ago = secs < 60 ? `${secs} s` : `${Math.floor(secs / 60)} min`;
+
+    const s = svcs.find(x => x.id === sel) || svcs[0];
+    const n = range === '1h' ? 30 : range === '24h' ? 48 : 56;
+    const vals = series(s, n, range);
+    const max = s.th * 1.6;
+    const line = path(vals, 320, 130, max);
+    const chart = { line, area: `${line} L320,130 L0,130 Z`, thY: (130 - 4 - (s.th / max) * 122).toFixed(1), th: s.th, from: range === '1h' ? 'hace 1 h' : range === '24h' ? 'hace 24 h' : 'hace 7 d' };
+    const st = ST[s.status];
+    const metrics = [
+      { label: 'Latencia p95', value: s.lat ? jitter(s) : '—', unit: 'ms', color: s.lat > s.th ? ST.degradado.color : '#e8edf0' },
+      { label: 'Tasa de errores', value: String(s.err).replace('.', ','), unit: '%', color: s.err >= 1 ? (s.err >= 50 ? ST.caido.color : ST.degradado.color) : '#e8edf0' },
+      { label: 'Disponibilidad 30 d', value: s.up.toFixed(2).replace('.', ','), unit: '%', color: '#e8edf0' },
+      { label: 'Peticiones', value: s.rpm.toLocaleString('es'), unit: '/min', color: '#e8edf0' },
+    ];
+    const checks = s.checks.map((c, i) => ({ path: c[0], code: c[2], color: ST[c[1]].color, sep: i ? '#20262a' : 'transparent' }));
+    const ranges = ['1h', '24h', '7d'].map(r => ({ label: r, onClick: () => this.setState({ range: r }), bg: range === r ? '#262c30' : 'transparent', fg: range === r ? '#e8edf0' : '#8d989f' }));
+
+    const sev = { 'crítica': ST.caido, advertencia: ST.degradado, info: { color: '#8d989f', tint: 'rgba(141,152,159,.14)' } };
+    const all = this.alerts();
+    const pendingCount = all.filter(a => !acked[a.id] && a.sev !== 'info').length;
+    const alerts = all.map(a => {
+      const done = !!acked[a.id] || a.sev === 'info';
+      return { sev: a.sev, msg: a.msg, time: a.time, service: svcs.find(x => x.id === a.sid).name, color: sev[a.sev].color, tint: sev[a.sev].tint,
+        border: done ? '#20262a' : sev[a.sev].tint, opacity: done ? 0.6 : 1, pending: !done, done: !!acked[a.id],
+        ack: () => this.setState(x => ({ acked: { ...x.acked, [a.id]: true } })), open: open(a.sid) };
+    });
+    const accent = '#e8edf0', dim = '#6c777e';
+    const activeTab = sel ? this.state.from : tab;
+    return {
+      isPanel: !sel && tab === 'panel', isDetail: !!sel, isAlerts: !sel && tab === 'alertas',
+      ago, refresh: () => this.setState({ last: Date.now(), now: Date.now() }),
+      counts, heroTitle, heroColor: ST[worst].color, heroBg: ST[worst].tint, heroBorder: ST[worst].tint,
+      filters, list, listEmpty: list.length === 0,
+      sel: { name: s.name, label: st.label, color: st.color, tint: st.tint, env: s.env, note: s.note },
+      metrics, chart, ranges, checks,
+      back: () => this.setState({ sel: null }), backLabel: this.state.from === 'alertas' ? 'Alertas' : 'Panel',
+      alerts, pendingCount, hasPending: pendingCount > 0,
+      pendingLabel: pendingCount ? `${pendingCount} sin reconocer` : 'Todo reconocido',
+      goPanel: () => this.setState({ tab: 'panel', sel: null }), goAlerts: () => this.setState({ tab: 'alertas', sel: null }),
+      tabPanelColor: activeTab === 'panel' ? accent : dim, tabAlertsColor: activeTab === 'alertas' ? accent : dim,
+    };
+  }
+}
+</script>
+</body>
+</html>
