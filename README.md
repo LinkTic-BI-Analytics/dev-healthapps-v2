@@ -44,7 +44,7 @@ docker compose up         # app (next dev con hot reload) + worker + PostgreSQL 
 ```bash
 docker build --target prod -t health-apps .
 docker run -p 3000:3000 -e DB_HOST=... -e DB_PORT=5432 -e DB_NAME=... \
-  -e DB_USER=... -e DB_PASSWORD=... -e DB_SCHEMA=app_health health-apps
+  -e DB_USER=... -e DB_PASSWORD=... health-apps
 docker build --target migrator -t health-apps-migrator .   # aplica las migraciones (prisma migrate deploy)
 ```
 
@@ -67,14 +67,13 @@ DB_PORT=5432                                  # pooler en modo sesión
 DB_NAME=postgres
 DB_USER=app_health_owner.<project-ref>        # con el pooler, el usuario lleva .<project-ref>
 DB_PASSWORD=...
-DB_SCHEMA=app_health
 DB_SSLMODE=require                            # obligatorio: sin esto la conexión va sin cifrar
 ```
 
 - `DB_SSLMODE=require` cifra la conexión sin validar el certificado: la CA de Supabase no está en
   el almacén de Node, y con validación estricta falla con `self-signed certificate in certificate chain`.
-- En lugar de las `DB_*` se puede usar `DATABASE_URL` (la URI de Supabase); `DB_SCHEMA` y
-  `DB_SSLMODE` se le aplican igual.
+- En lugar de las `DB_*` se puede usar `DATABASE_URL` (la URI de Supabase); se le aplican
+  igual el esquema `app_health` y `DB_SSLMODE`.
 - La contraseña va en claro en el `.env` (la app la codifica); el `.env` está en `.gitignore`.
 - **En Vercel usa el *Transaction pooler* (`DB_PORT=6543`)**: el modo sesión admite solo 15 clientes
   y cada instancia de Vercel abre su propio pool (error `EMAXCONNSESSION`). Las migraciones siguen
@@ -96,8 +95,9 @@ DB_SSLMODE=require                            # obligatorio: sin esto la conexi�
 
 ### Protecciones
 
-- `DB_SCHEMA` por defecto es `app_health`; `public` y los esquemas de Supabase/PostgreSQL
-  (`auth`, `storage`, `extensions`, `pg_*`, ...) se rechazan al arrancar (`src/lib/db/config.ts`).
+- El esquema es **siempre `app_health`** (`APP_SCHEMA` en `src/lib/db/config.ts`) y no se
+  configura: no existe `DB_SCHEMA`. Si un `.env` viejo la define con otro valor, la app falla al
+  arrancar en vez de usar otro esquema.
 - `prisma migrate dev`, `prisma migrate reset`, `prisma db push` y `prisma db execute` están
   bloqueados contra cualquier host que no sea local (`prisma.config.ts`). Las migraciones nuevas
   se crean en local (`docker compose up db` + `pnpm db:migrate`) y en Supabase solo se aplican

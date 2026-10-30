@@ -17,7 +17,6 @@ x-local-db: &local-db
   DB_NAME: health_apps
   DB_USER: postgres
   DB_PASSWORD: postgres
-  DB_SCHEMA: app_health
   DB_SSLMODE: disable
   DATABASE_URL: ""
 
@@ -28,7 +27,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: health_apps
-      DB_SCHEMA: app_health
     ports:
       # LOCAL_DB_PORT permite cambiar el puerto del equipo si 5432 ya está ocupado.
       - "${LOCAL_DB_PORT:-5432}:5432"
