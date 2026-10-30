@@ -13,49 +13,20 @@ export type DatabaseConfig = {
   schema: string;
 };
 
-export const DEFAULT_SCHEMA = "app_health";
-
-/** Solo identificadores simples: el esquema se interpola en `search_path`. */
-const SCHEMA_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
-
 /**
- * Esquemas que la app nunca debe usar: `prisma migrate reset` hace DROP SCHEMA ... CASCADE del
- * esquema configurado, y en Supabase estos esquemas son de la plataforma o de otras aplicaciones.
+ * Esquema único de la app: tablas, migraciones, seed y worker viven siempre aquí. No es configurable,
+ * para que ningún entorno termine apuntando a otro esquema (en Supabase la base es compartida).
  */
-export const FORBIDDEN_SCHEMAS = new Set([
-  "public",
-  "auth",
-  "storage",
-  "realtime",
-  "extensions",
-  "graphql",
-  "graphql_public",
-  "vault",
-  "pgbouncer",
-  "pgsodium",
-  "pgsodium_masks",
-  "net",
-  "cron",
-  "supabase_functions",
-  "supabase_migrations",
-  "_realtime",
-  "_analytics",
-  "information_schema",
-]);
+export const APP_SCHEMA = "app_health";
 
-export function resolveSchema(env: Env = process.env): string {
-  const schema = env.DB_SCHEMA?.trim() || DEFAULT_SCHEMA;
-  if (!SCHEMA_PATTERN.test(schema)) {
+/** `DB_SCHEMA` ya no se usa; si un `.env` viejo la define con otro valor, se falla en vez de ignorarla. */
+function assertNoOtherSchema(env: Env) {
+  const schema = env.DB_SCHEMA?.trim();
+  if (schema && schema !== APP_SCHEMA) {
     throw new Error(
-      `DB_SCHEMA="${schema}" no es un nombre de esquema válido. Usa solo letras, números y guion bajo (p. ej. ${DEFAULT_SCHEMA}).`,
+      `DB_SCHEMA="${schema}" ya no se admite: la app usa siempre el esquema ${APP_SCHEMA}. Quita DB_SCHEMA del .env.`,
     );
   }
-  if (FORBIDDEN_SCHEMAS.has(schema.toLowerCase()) || /^pg_/i.test(schema)) {
-    throw new Error(
-      `DB_SCHEMA="${schema}" está reservado (plataforma u otras aplicaciones). La app solo puede usar su propio esquema, p. ej. ${DEFAULT_SCHEMA}.`,
-    );
-  }
-  return schema;
 }
 
 /** Hosts donde se permiten comandos destructivos de Prisma (migrate dev/reset, db push). */
@@ -71,7 +42,8 @@ export function isLocalDatabase(url: string): boolean {
  * `DATABASE_URL`, si está definida, tiene prioridad sobre las variables DB_*.
  */
 export function getDatabaseConfig(env: Env = process.env): DatabaseConfig | null {
-  const schema = resolveSchema(env);
+  assertNoOtherSchema(env);
+  const schema = APP_SCHEMA;
 
   const sslMode = resolveSslMode(env);
 
@@ -119,7 +91,7 @@ export function requireDatabaseConfig(env: Env = process.env): DatabaseConfig {
   const config = getDatabaseConfig(env);
   if (!config) {
     throw new Error(
-      "Falta la configuración de la base de datos. Define DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD y DB_SCHEMA en .env (ver .env.example).",
+      "Falta la configuración de la base de datos. Define DB_HOST, DB_PORT, DB_NAME, DB_USER y DB_PASSWORD en .env (ver .env.example).",
     );
   }
   return config;
