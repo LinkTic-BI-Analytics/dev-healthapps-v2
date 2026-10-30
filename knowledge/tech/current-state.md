@@ -14,7 +14,7 @@ refined_by: implementation-agent
 
 - **Aplicación web** Next.js 16 (App Router) + React 19 + TypeScript estricto + Tailwind CSS 4, **mobile-first** y responsive, con tema claro y oscuro (línea gráfica en `resources/lineagrafica/`).
 - **Backend en la misma aplicación:** Route Handlers delgados (`app/api/**`) que delegan en `src/features/<feature>/server/`. Estructura y convenciones en `knowledge/tech/codebase.md`.
-- **Persistencia:** PostgreSQL 18 con Prisma 7.10 y `@prisma/adapter-pg`, esquema configurable con `DB_SCHEMA` (normalmente `health_extern`) — [ADR-001](./decisions/ADR-001-persistencia-postgresql-prisma.md).
+- **Persistencia:** PostgreSQL 18 con Prisma 7.10 y `@prisma/adapter-pg`, esquema fijo `auth-direction` (`APP_SCHEMA` en `src/lib/db/config.ts`) — [ADR-001](./decisions/ADR-001-persistencia-postgresql-prisma.md).
 - **Autenticación:** JWT de acceso + sesiones revocables en base de datos, cookies `httpOnly` — [ADR-002](./decisions/ADR-002-autenticacion-jwt-sesiones-revocables.md) (draft).
 - **Autorización:** roles `superadmin`, `admin` y `nuevo` con permisos `<recurso>.<acción>` revocables por usuario — [ADR-003](./decisions/ADR-003-modelo-de-autorizacion-roles-permisos.md) (draft).
 - **Verificaciones periódicas:** proceso worker separado que reclama servicios vencidos con `FOR UPDATE SKIP LOCKED` — [ADR-004](./decisions/ADR-004-ejecucion-periodica-de-verificaciones.md) (draft).

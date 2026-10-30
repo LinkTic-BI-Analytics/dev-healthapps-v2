@@ -23,7 +23,7 @@ docker compose up         # app (next dev con hot reload) + worker + PostgreSQL 
 
 - La app queda en http://localhost:3000 y aplica las migraciones y el seed al arrancar.
 - **Docker Compose siempre usa la base local** (contenedor `db`, usuario/contraseña `postgres`,
-  base `health_apps`, esquema `app_health`, sin SSL). Las `DB_*` y `DATABASE_URL` del `.env` se
+  base `health_apps`, esquema `auth-direction`, sin SSL). Las `DB_*` y `DATABASE_URL` del `.env` se
   sobrescriben en `docker-compose.yml`, así que el `.env` puede apuntar a Supabase sin que
   `docker compose up` lo toque.
 - Si el puerto 5432 del equipo está ocupado: `LOCAL_DB_PORT=5433 docker compose up`.
@@ -48,10 +48,10 @@ docker run -p 3000:3000 -e DB_HOST=... -e DB_PORT=5432 -e DB_NAME=... \
 docker build --target migrator -t health-apps-migrator .   # aplica las migraciones (prisma migrate deploy)
 ```
 
-## Base de datos en Supabase (esquema `app_health`)
+## Base de datos en Supabase (esquema `auth-direction`)
 
 La app comparte la base de Supabase con otros sistemas, así que **todo lo suyo vive en el esquema
-`app_health`** y nada de lo que hace (app, worker, seed ni migraciones) toca otros esquemas.
+`auth-direction`** y nada de lo que hace (app, worker, seed ni migraciones) toca otros esquemas.
 Se conecta directo a PostgreSQL con Prisma: **no usa `supabase-js`**, así que no necesita
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` ni `SUPABASE_SECRET_KEY`
 (y una clave secreta nunca debe llevar el prefijo `NEXT_PUBLIC_`).
@@ -65,39 +65,43 @@ puerto 6543, para las migraciones):
 DB_HOST=aws-0-<region>.pooler.supabase.com   # la región del proyecto, p. ej. us-west-2
 DB_PORT=5432                                  # pooler en modo sesión
 DB_NAME=postgres
-DB_USER=app_health_owner.<project-ref>        # con el pooler, el usuario lleva .<project-ref>
+DB_USER=auth_direction_owner.<project-ref>    # con el pooler, el usuario lleva .<project-ref>
 DB_PASSWORD=...
 DB_SSLMODE=require                            # obligatorio: sin esto la conexión va sin cifrar
 ```
 
 - `DB_SSLMODE=require` cifra la conexión sin validar el certificado: la CA de Supabase no está en
   el almacén de Node, y con validación estricta falla con `self-signed certificate in certificate chain`.
+- No uses el host directo `db.<project-ref>.supabase.co`: solo tiene IPv6 y desde redes sin IPv6
+  (y desde Vercel) no conecta. Usa siempre el pooler (`aws-<n>-<region>.pooler.supabase.com`).
 - En lugar de las `DB_*` se puede usar `DATABASE_URL` (la URI de Supabase); se le aplican
-  igual el esquema `app_health` y `DB_SSLMODE`.
+  igual el esquema `auth-direction` y `DB_SSLMODE`.
 - La contraseña va en claro en el `.env` (la app la codifica); el `.env` está en `.gitignore`.
 - **En Vercel usa el *Transaction pooler* (`DB_PORT=6543`)**: el modo sesión admite solo 15 clientes
   y cada instancia de Vercel abre su propio pool (error `EMAXCONNSESSION`). Las migraciones siguen
   corriendo con el modo sesión (5432) desde tu máquina. El SQL crudo funciona igual porque el rol
-  tiene `search_path = app_health` (ver `scripts/supabase/app-health-setup.sql`).
+  tiene `search_path = "auth-direction"` (ver `scripts/supabase/auth-direction-setup.sql`).
 
 ### Puesta en marcha (una sola vez por entorno)
 
-1. Un administrador ejecuta [`scripts/supabase/app-health-setup.sql`](./scripts/supabase/app-health-setup.sql)
-   en el SQL Editor como `postgres`, cambiando antes la contraseña. Crea el esquema `app_health`
-   y el rol `app_health_owner`, dueño solo de ese esquema: la propia base le impide crear o
+1. Un administrador ejecuta [`scripts/supabase/auth-direction-setup.sql`](./scripts/supabase/auth-direction-setup.sql)
+   en el SQL Editor como `postgres`, cambiando antes la contraseña. Crea el esquema `auth-direction`
+   y el rol `auth_direction_owner`, dueño solo de ese esquema: la propia base le impide crear o
    modificar objetos en `public`, `auth`, `storage` o cualquier otro esquema.
-2. Configura las variables de arriba **con `app_health_owner`, nunca con `postgres`**.
+2. Configura las variables de arriba **con `auth_direction_owner`, nunca con `postgres`**.
 3. Comprueba la conexión (solo lectura): `pnpm exec prisma migrate status` debe mostrar
-   `schema "app_health"` y las migraciones pendientes.
-4. `pnpm db:deploy` crea las tablas en `app_health` (Prisma también crea ahí su tabla de control
+   `schema "auth-direction"` y las migraciones pendientes.
+4. `pnpm db:deploy` crea las tablas en `auth-direction` (Prisma también crea ahí su tabla de control
    `_prisma_migrations`; las migraciones no califican el esquema).
 5. Define `SEED_SUPERADMIN_*` y ejecuta `pnpm db:seed` (roles, permisos y el primer superadmin).
 
 ### Protecciones
 
-- El esquema es **siempre `app_health`** (`APP_SCHEMA` en `src/lib/db/config.ts`) y no se
+- El esquema es **siempre `auth-direction`** (`APP_SCHEMA` en `src/lib/db/config.ts`) y no se
   configura: no existe `DB_SCHEMA`. Si un `.env` viejo la define con otro valor, la app falla al
   arrancar en vez de usar otro esquema.
+- El nombre lleva guion: en SQL (SQL Editor, `psql`) va siempre entre comillas dobles,
+  p. ej. `SELECT * FROM "auth-direction".services`.
 - `prisma migrate dev`, `prisma migrate reset`, `prisma db push` y `prisma db execute` están
   bloqueados contra cualquier host que no sea local (`prisma.config.ts`). Las migraciones nuevas
   se crean en local (`docker compose up db` + `pnpm db:migrate`) y en Supabase solo se aplican
