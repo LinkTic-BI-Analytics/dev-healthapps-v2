@@ -2,7 +2,7 @@
 
 Cómo iniciar sesión en otra app con los usuarios de Health Apps. La API devuelve **tokens Bearer en JSON** (no usa cookies): la app guarda los tokens y los envía en cada petición.
 
-> **URL base:** `https://<dominio-de-health-apps>` (pídela al equipo de backend). En los ejemplos se usa `API_URL`.
+> **URL base (desarrollo):** `https://dev-healthapps-v2.vercel.app`. En los ejemplos se usa `API_URL`; por ejemplo, el login es `POST https://dev-healthapps-v2.vercel.app/api/auth/token`.
 
 > ⚠️ **CORS:** hoy los endpoints no envían cabeceras CORS. Si van a llamarlos **desde el navegador** (SPA en otro dominio), avisen al equipo de backend con los orígenes que necesitan habilitar. Desde un backend propio (BFF, server actions, rutas API de Next.js, etc.) funciona sin cambios.
 
