@@ -134,7 +134,7 @@ app/<ruta>/page.tsx            →  compone la pantalla; sin fetch ni lógica de
         └── service            →  fetch a /api/**, parseo de error, normalización
               └── app/api/<recurso>/route.ts   →  valida entrada, delega
                     └── features/<f>/server/   →  casos de uso + repositorio
-                          └── src/lib/db (Prisma) → PostgreSQL (esquema DB_SCHEMA)
+                          └── src/lib/db (Prisma) → PostgreSQL (esquema auth-direction)
 
 Tareas en segundo plano (verificaciones periódicas, alertas)
   └── features/<f>/server/ directamente (sin pasar por HTTP)
@@ -226,12 +226,12 @@ Reglas:
 ## Base de datos (Prisma 7)
 
 - **Prisma 7.10** (última estable) con el adaptador `@prisma/adapter-pg`. El generador `prisma-client` escribe el cliente en `src/generated/prisma/` (ignorado en Git; se regenera en `postinstall`).
-- `prisma.config.ts` y el cliente (`src/lib/db/index.ts`) obtienen la conexión de la misma función, `getDatabaseConfig()` (`src/lib/db/config.ts`), que compone la URL desde las `DB_*` con `?schema=DB_SCHEMA` y valida el nombre del esquema.
+- `prisma.config.ts` y el cliente (`src/lib/db/index.ts`) obtienen la conexión de la misma función, `getDatabaseConfig()` (`src/lib/db/config.ts`), que compone la URL desde las `DB_*` con `?schema=auth-direction` (`APP_SCHEMA`, fijo: no se configura).
 - El cliente aplica el esquema de dos formas: la opción `schema` del adaptador (consultas de Prisma) y `search_path` (SQL crudo y `current_schema()`).
 - `db` es un cliente único por proceso (en desarrollo se guarda en `globalThis` para sobrevivir al hot reload) y se importa con `import "server-only"`: solo en el servidor.
 - Scripts: `pnpm db:generate`, `pnpm db:migrate` (desarrollo; crea el esquema si no existe y regenera el cliente, porque Prisma 7 ya no lo hace solo), `pnpm db:seed`, `pnpm db:deploy` (producción) y `pnpm test:integration` (pruebas `*.integration.test.ts` contra la base real del `.env`).
 - `GET /api/health` responde el estado de la aplicación y de la base (200 / 503).
-- **Supabase:** la base es compartida y la app solo usa el esquema `app_health`, con el rol `app_health_owner` (`scripts/supabase/app-health-setup.sql`). `prisma.config.ts` bloquea `migrate dev`, `migrate reset`, `db push` y `db execute` contra hosts no locales; en Supabase solo se usa `pnpm db:deploy`.
+- **Supabase:** la base es compartida y la app solo usa el esquema `auth-direction`, con el rol `auth_direction_owner` (`scripts/supabase/auth-direction-setup.sql`). El nombre lleva guion: en SQL va entre comillas dobles (`"auth-direction"`). `prisma.config.ts` bloquea `migrate dev`, `migrate reset`, `db push` y `db execute` contra hosts no locales; en Supabase solo se usa `pnpm db:deploy`.
 
 ## Worker de verificaciones (WI-010, ADR-004)
 
@@ -276,7 +276,7 @@ user_directions
 - Restricciones `UNIQUE` en las claves naturales (p. ej. `email`) y `NOT NULL` salvo que el dato sea realmente opcional.
 - Nunca se guardan secretos en claro: contraseñas → `password_hash`; tokens → `*_token_hash`.
 - **En Prisma:** modelos en `PascalCase` y singular (`User`, `UserSession`) y campos en `camelCase` (`createdAt`), mapeados a la base con `@@map("users")` y `@map("created_at")`. Ids con `@id @default(uuid()) @db.Uuid`, `updatedAt` con `@updatedAt` y fechas con `@db.Timestamptz`.
-- Las tablas viven en el esquema `DB_SCHEMA` (`app_health`, en Supabase). `public` y los esquemas de Supabase están prohibidos; ver README → "Base de datos en Supabase".
+- Las tablas viven siempre en el esquema `auth-direction` (`APP_SCHEMA` en `src/lib/db/config.ts`); la app no toca `public` ni los esquemas de Supabase. Ver README → "Base de datos en Supabase".
 - Cada cambio de esquema se hace con una migración versionada de Prisma; nunca se modifica la base a mano.
 
 ## Autenticación
@@ -319,9 +319,8 @@ Se define en WI-019 (backend) y WI-020 (pantallas y protección de rutas):
 | Variable | Ámbito | Descripción |
 | --- | --- | --- |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | servidor | conexión a PostgreSQL |
-| `DB_SCHEMA` | servidor | esquema; por defecto `app_health`. Se rechazan `public` y los esquemas reservados de Supabase/PostgreSQL |
 | `DB_SSLMODE` | servidor | vacío/`disable` en local; `require` en Supabase (cifra sin validar la CA) |
-| `DATABASE_URL` | servidor | **Opcional.** Si se define, tiene prioridad sobre las `DB_*`; la aplicación siempre le aplica `?schema=${DB_SCHEMA}` (`src/lib/db/config.ts`) |
+| `DATABASE_URL` | servidor | **Opcional.** Si se define, tiene prioridad sobre las `DB_*`; la aplicación siempre le aplica `?schema=auth-direction` (`src/lib/db/config.ts`) |
 | `JWT_ACCESS_SECRET` | servidor | secreto de firma del access token, mínimo 32 caracteres (WI-019) |
 | `AUTH_COOKIE_SECURE` | servidor | `auto` (por defecto: `Secure` solo con HTTPS, también detrás de proxy), `true` o `false` |
 | `JWT_ACCESS_TTL_MINUTES` | servidor | duración del access token; normalmente `60` |
@@ -332,7 +331,7 @@ Se define en WI-019 (backend) y WI-020 (pantallas y protección de rutas):
 - Las variables `NEXT_PUBLIC_*` se incluyen en tiempo de build; úsalas solo para valores no sensibles.
 - Desarrollo local: `docker compose up` (app con el target dev + PostgreSQL 18).
 - Producción: imagen del target `prod` del `Dockerfile` (salida `standalone` de Next.js, Node 24 Alpine, usuario `nextjs` no root, `HEALTHCHECK` contra `/api/health`), conectada a una instancia de PostgreSQL aparte, con las variables inyectadas en tiempo de ejecución. El target `migrator` aplica las migraciones (`prisma migrate deploy`).
-- En local, `docker/postgres/init/01-create-schema.sh` crea el esquema `DB_SCHEMA` al inicializar el volumen; `postgres:18` guarda los datos en `/var/lib/postgresql/18/docker` (se monta `/var/lib/postgresql`).
+- En local, `docker/postgres/init/01-create-schema.sh` crea el esquema `auth-direction` al inicializar el volumen; `postgres:18` guarda los datos en `/var/lib/postgresql/18/docker` (se monta `/var/lib/postgresql`).
 
 ## Convenciones de código
 
@@ -367,7 +366,7 @@ pnpm lint     # ESLint
 Con Docker (WI-005 y WI-006):
 
 ```bash
-cp .env.example .env     # DB_SCHEMA=app_health
+cp .env.example .env
 docker compose up        # app (dev, aplica migraciones al arrancar) + PostgreSQL 18
 # o solo la base y la app en el anfitrión:
 docker compose up db && pnpm dev

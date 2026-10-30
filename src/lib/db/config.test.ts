@@ -4,17 +4,17 @@ import { APP_SCHEMA, getDatabaseConfig, isLocalDatabase, requireDatabaseConfig }
 const base = { DB_HOST: "localhost", DB_PORT: "5432", DB_NAME: "health_apps", DB_USER: "postgres", DB_PASSWORD: "postgres" };
 
 describe("configuración de base de datos", () => {
-  it("usa siempre el esquema app_health", () => {
-    expect(APP_SCHEMA).toBe("app_health");
+  it("usa siempre el esquema auth-direction", () => {
+    expect(APP_SCHEMA).toBe("auth-direction");
     expect(getDatabaseConfig(base)).toEqual({
-      url: "postgresql://postgres:postgres@localhost:5432/health_apps?schema=app_health",
-      schema: "app_health",
+      url: "postgresql://postgres:postgres@localhost:5432/health_apps?schema=auth-direction",
+      schema: "auth-direction",
     });
-    expect(getDatabaseConfig({ ...base, DB_SCHEMA: "app_health" })?.schema).toBe("app_health");
+    expect(getDatabaseConfig({ ...base, DB_SCHEMA: "auth-direction" })?.schema).toBe("auth-direction");
   });
 
   it("rechaza DB_SCHEMA con cualquier otro esquema", () => {
-    for (const schema of ["public", "auth", "health_extern", "app_health; DROP TABLE x"]) {
+    for (const schema of ["public", "auth", "app_health", "health_extern", "auth-direction; DROP TABLE x"]) {
       expect(() => getDatabaseConfig({ ...base, DB_SCHEMA: schema })).toThrow(/ya no se admite/);
     }
   });
@@ -30,14 +30,14 @@ describe("configuración de base de datos", () => {
     expect(getDatabaseConfig({ ...base, DB_PASSWORD: "p@ss:w/rd" })?.url).toContain("postgres:p%40ss%3Aw%2Frd@");
   });
 
-  it("da prioridad a DATABASE_URL y le impone el esquema app_health", () => {
+  it("da prioridad a DATABASE_URL y le impone el esquema auth-direction", () => {
     const config = getDatabaseConfig({ DATABASE_URL: "postgresql://u:p@db:5432/x?schema=public" });
-    expect(config?.url).toBe("postgresql://u:p@db:5432/x?schema=app_health");
+    expect(config?.url).toBe("postgresql://u:p@db:5432/x?schema=auth-direction");
   });
 
   it("aplica DB_SSLMODE=require con semántica de libpq", () => {
     expect(getDatabaseConfig({ ...base, DB_SSLMODE: "require" })?.url).toBe(
-      "postgresql://postgres:postgres@localhost:5432/health_apps?schema=app_health&sslmode=require&uselibpqcompat=true",
+      "postgresql://postgres:postgres@localhost:5432/health_apps?schema=auth-direction&sslmode=require&uselibpqcompat=true",
     );
     expect(getDatabaseConfig({ DATABASE_URL: "postgresql://u:p@db:5432/x", DB_SSLMODE: "require" })?.url).toContain(
       "sslmode=require&uselibpqcompat=true",

@@ -2,7 +2,7 @@ import "dotenv/config";
 import { defineConfig } from "prisma/config";
 import { getDatabaseConfig, isLocalDatabase } from "./src/lib/db/config";
 
-// La URL se compone a partir de DB_* (o DATABASE_URL si está definida) con ?schema=app_health.
+// La URL se compone a partir de DB_* (o DATABASE_URL si está definida) con ?schema=auth-direction.
 // Puede no existir durante `prisma generate`, que no necesita conexión.
 const database = getDatabaseConfig();
 

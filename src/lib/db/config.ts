@@ -17,7 +17,7 @@ export type DatabaseConfig = {
  * Esquema único de la app: tablas, migraciones, seed y worker viven siempre aquí. No es configurable,
  * para que ningún entorno termine apuntando a otro esquema (en Supabase la base es compartida).
  */
-export const APP_SCHEMA = "app_health";
+export const APP_SCHEMA = "auth-direction";
 
 /** `DB_SCHEMA` ya no se usa; si un `.env` viejo la define con otro valor, se falla en vez de ignorarla. */
 function assertNoOtherSchema(env: Env) {
